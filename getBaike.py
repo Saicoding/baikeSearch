@@ -54,7 +54,7 @@ class Baike:
                         flag = '企业'
                     elif (flag.index('的现任职位或原职位')):
                         flag = '官员'
-                    elif (flag.index('如游戏主播、跳高运动员等')):
+                    elif (flag.index('如游戏主播')):
                         flag = '人物'
 
 

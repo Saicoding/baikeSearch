@@ -16,7 +16,7 @@ num = strJson['num']
 profile_dir=r"C:\Users\41735\AppData\Local\Google\Chrome\User Data" # 对应你的chrome的用户数据存放路径  
 chrome_options=webdriver.ChromeOptions()
 # 使用headless无界面浏览器模式
-# chrome_options.add_argument('--headless')
+chrome_options.add_argument('--headless')
 chrome_options.add_argument('--disable-gpu')
 
 chrome_options.add_argument("user-data-dir="+os.path.abspath(profile_dir))
