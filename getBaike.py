@@ -4,7 +4,10 @@ from selenium.webdriver.support import expected_conditions as EC
 import pymysql
 import time, unittest, re
 import json  # 引入模块
-
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import NoAlertPresentException
 
 class Baike:
     def __init__(self, driver, num):
@@ -13,11 +16,12 @@ class Baike:
         self.num = num
         self.start = True
         self.count = 0
+        self.driver.set_page_load_timeout(10)
 
         # db指定数据库；charset指定字符集；
-        self.connection = pymysql.connect(host='45.63.36.93',
+        self.connection = pymysql.connect(host='47.92.252.98',
                                           user='root',
-                                          password='ty8342368',
+                                          password='ty8399782',
                                           db='sai',
                                           charset='utf8mb4',
                                           cursorclass=pymysql.cursors.DictCursor)
@@ -27,40 +31,68 @@ class Baike:
             referUrl = ""
             refer = ""
             referDate = ""
+
             # 打开网页
             try:
                 self.driver.get('https://baike.baidu.com/edit/1/{}'.format(self.num))
-            except Exception:
-                print('卡住了，在刷新1')
-                self.driver.refresh()
+                try:
+                    alert = self.driver.switch_to.alert
+                    print('有弹窗')
+                    alert.accept()
+                except NoAlertPresentException:
+                    pass
+            except TimeoutException:
+                print('&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&卡住了，在刷新1')
+
+                continue
 
             # 如果没有该词条，继续下个回合
             current_url = self.driver.current_url
 
-            if current_url.find('baike.baidu.com/error') != -1:
-                self.num += 1
+            try:
+                if current_url.find('baike.baidu.com/error') != -1:
+                    print('***************************{}'.format(self.num))
+                    self.num += 1
+                    continue
+                else:
+                    pass
+            except TimeoutException:
+                print('&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&卡住了，在刷新2')
                 continue
+
 
             # 等待找到title这个dom
             if current_url.find('/editor/load/editload?') != -1:
                 try:
-                    WebDriverWait(self.driver, 10 , 0.3).until(
+                    WebDriverWait(self.driver, 10 , 0.5).until(
                         EC.presence_of_element_located((By.ID, 'J-lemma-desc')))
                     time.sleep(0.2)
                     name = self.driver.find_element_by_class_name("lemma-title").text
                     flag = self.driver.find_element_by_id('J-lemma-desc').get_attribute("placeholder")
 
-                    if (flag.index('世界500强企业')):
-                        flag = '企业'
-                    elif (flag.index('的现任职位或原职位')):
-                        flag = '官员'
-                    elif (flag.index('如游戏主播')):
-                        flag = '人物'
+                    # 设置标签信息
 
+                    try:
+                        flag.index('世界500强企业')
+                        flag = '企业'
+                    except Exception:
+                        pass
+
+                    try:
+                        flag.index('如游戏主播')
+                        flag = '人物'
+                    except Exception:
+                        pass
+
+                    try:
+                        flag.index('的现任职位或原职位')
+                        flag = '官员'
+                    except Exception:
+                        pass
 
                 except Exception:
-                    print('卡住了，在刷新2')
-                    self.driver.refresh()
+                    print('卡住了，在刷新3')
+                    continue
 
             else:
                 try:
@@ -80,6 +112,7 @@ class Baike:
                     referDate = self.driver.find_element_by_xpath('//*[@id="anchorTextIndex1"]/span[2]').text
 
                 except Exception:
+                    print('***************************{}'.format(self.num))
                     self.num += 1
                     continue
 
@@ -89,8 +122,16 @@ class Baike:
             # 历史版本url
             historyUrl = "https://baike.baidu.com/historylist/" + name + "/{}".format(self.num)
 
-            print('正在查询:' + name + ' 编号:{}'.format(self.num))
+            # print('正在查询:' + name + ' 编号:{}'.format(self.num))
+
+            self.driver.execute_script('window.onbeforeunload = function() {}')
+
             self.driver.get(historyUrl)
+            try:
+                alert = self.driver.switch_to.alert
+                alert.accept()
+            except NoAlertPresentException:
+                pass
 
             try:
                 # 等待找到编辑次数这个组件
@@ -99,10 +140,9 @@ class Baike:
                 edit_num = self.driver.find_element_by_class_name("editedTimes").text
 
             except Exception:
+                print('***************************{}'.format(self.num))
                 self.num += 1
                 continue
-
-
 
             num_index1 = edit_num.index('辑')
             num_index2 = edit_num.index('次')
@@ -127,14 +167,14 @@ class Baike:
             ereson = self.driver.find_element_by_xpath("/html/body/div[2]/table/tbody/tr[1]/td[5]").text
 
 
-            print('https://baike.baidu.com/item/' + name + '/{}'.format(self.num))
+            # print('https://baike.baidu.com/item/' + name + '/{}'.format(self.num))
 
             str = "词条名称: %s 最近编辑者：%s 最近编辑时间：%s,'编辑次数：%s, '词条类型：%s '参数资料：%s%s.%s" %(name, ename, etime, edit_num, flag, referUrl, refer, referDate);
 
             # print(str)
             # print('   ')
 
-            print(name, flag, refer, referUrl, referDate, edit_num, cname, ename, ctime, etime, ereson, self.num)
+            # print(name, flag, refer, referUrl, referDate, edit_num, cname, ename, ctime, etime, ereson, self.num)
 
             num_str = {"num": self.num}
 
@@ -157,10 +197,14 @@ class Baike:
                 # Create a new record
                 # 构建sql语句
                 cursor.execute(sql, (name, flag, refer, referUrl, referDate, edit_num, cname, ename, ctime, etime, ereson, num))
+                print(name,flag,ctime,num)
             # connection is not autocommit by default. So you must commit to save
             # your changes.
             # 向mysql提交更改，如果是查询语句，无需执行connection.commit()
             # 可以通过设置connection.autocommit()来自动提交，传入True即可
             self.connection.commit()
         except Exception:
+            print('###############################################################################################')
+            print(name, flag, refer, referUrl, referDate, edit_num, cname, ename, ctime, etime, ereson, num)
             print('操作数据库错误')
+            print('###############################################################################################')

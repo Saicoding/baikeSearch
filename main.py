@@ -18,6 +18,7 @@ chrome_options=webdriver.ChromeOptions()
 # 使用headless无界面浏览器模式
 chrome_options.add_argument('--headless')
 chrome_options.add_argument('--disable-gpu')
+chrome_options.add_argument("--disable-popup-blocking");
 
 chrome_options.add_argument("user-data-dir="+os.path.abspath(profile_dir))
 
